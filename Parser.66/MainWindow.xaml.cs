@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
-using System.Windows;
 using HtmlAgilityPack;
 
 namespace Parser._66
@@ -11,6 +10,9 @@ namespace Parser._66
     /// </summary>
     public partial class MainWindow
     {
+//        const string UriString = @"http://www.e1.ru/afisha/events/gastroli";
+        const string UriString = @"http://www.e1.ru/afisha/events/gastroli/1.html";
+
         public MainWindow()
         {
             InitializeComponent();
@@ -18,17 +20,14 @@ namespace Parser._66
 
         private void MainWindow_OnInitialized(object sender, EventArgs e)
         {
-            HtmlDocument htmlSnippet = LoadHtmlSnippetFromWeb();
-
-            List<E1Event> e1Events = ExtractAllE1Events(htmlSnippet);
-
-            // bind to gridview
-            MainDataGrid.ItemsSource = e1Events;
+            HtmlDocument htmlPage = LoadHtmlPageFromWeb();
+            List<gigEvent> events = ExtractAllGigEvents(htmlPage);
+            MainDataGrid.ItemsSource = events;
         }
 
-        private List<E1Event> ExtractAllE1Events(HtmlDocument htmlSnippet)
+        private List<gigEvent> ExtractAllGigEvents(HtmlDocument htmlSnippet)
         {
-            var events = new List<E1Event>();
+            var events = new List<gigEvent>();
 
             HtmlNode root = htmlSnippet.DocumentNode;
             HtmlNodeCollection pivotNodes = root.SelectNodes(@"//span[@class='small']");
@@ -40,16 +39,15 @@ namespace Parser._66
 
                 string placeText = ExtractTextAboutPlace(pivotNode);
 
-                events.Add(new E1Event {Place = placeText, Date = date, Name = name});
+                events.Add(new gigEvent {Place = placeText, Date = date, Name = name});
             }
             return events;
         }
 
         private static string ExtractTextAboutDate(HtmlNodeCollection pivotNodes)
         {
-            //todo: redo many parents into parent holding tables
             string date =
-                pivotNodes[0].SelectSingleNode(@"../../../../../../../../../table[2]//b[@class='white_menu']")
+                pivotNodes[0].SelectSingleNode(@"ancestor::table[3]//b[@class='white_menu']")
                     .InnerText.Trim();
             return date;
         }
@@ -57,8 +55,8 @@ namespace Parser._66
         private static string ExtractTextAboutName(HtmlNode pivotNode)
         {
             //take second table after table that is holding pivotnode:
-            //../../../../following-sibling::table[2]
-            const string selector = @"../../../../following-sibling::table[2]//b[@class='big_orange']";
+            //ancestor::table[1]/following-sibling::table[2]
+            const string selector = @"ancestor::table[1]/following-sibling::table[2]//b[@class='big_orange']";
             HtmlNode node = pivotNode.SelectSingleNode(selector);
             if (node == null)
                 throw new SelectException(selector);
@@ -79,11 +77,11 @@ namespace Parser._66
             return placeText;
         }
 
-        private HtmlDocument LoadHtmlSnippetFromWeb()
+        private HtmlDocument LoadHtmlPageFromWeb()
         {
-            const string uriString = @"http://www.e1.ru/afisha/events/gastroli";
-            //todo: invalid response throw exception case?
-            var stream = WebRequest.Create(uriString).GetResponse().GetResponseStream();
+            var stream = WebRequest.Create(UriString).GetResponse().GetResponseStream();
+            if (stream == null) 
+                throw new EmptyResponseException(UriString);
 
             var doc = new HtmlDocument();
             doc.Load(stream);
