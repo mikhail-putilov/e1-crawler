@@ -1,9 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Windows.Controls.Primitives;
+using System.Threading;
+using System.Windows;
+using System.Windows.Controls;
 using HtmlAgilityPack;
 
 namespace Parser._66
@@ -13,8 +14,7 @@ namespace Parser._66
     /// </summary>
     public partial class MainWindow
     {
-//        const string UriString = @"http://www.e1.ru/afisha/events/gastroli";
-        private const string UriString = @"http://www.e1.ru/afisha/events/gastroli/1.html";
+        private const string UriString = @"http://www.e1.ru/afisha/events/gastroli";
 
         public MainWindow()
         {
@@ -23,9 +23,38 @@ namespace Parser._66
 
         private void MainWindow_OnInitialized(object sender, EventArgs e)
         {
-            HtmlDocument htmlPage = LoadHtmlPageFromWeb();
-            List<GigEvent> events = ExtractAllGigEvents(htmlPage);
-            MainDataGrid.ItemsSource = events;
+            try
+            {
+                HtmlDocument htmlPage = RetryLoadHtmlPage(2);
+                List<GigEvent> events = ExtractAllGigEvents(htmlPage);
+                MainDataGrid.ItemsSource = events;
+            }
+            catch (Exception exception)
+            {
+                MessageBox.Show(exception.Message);
+            }
+        }
+
+        private HtmlDocument RetryLoadHtmlPage(uint tries)
+        {
+            bool succeeded = false;
+
+            do
+            {
+                try
+                {
+                    HtmlDocument htmlPage = LoadHtmlPageFromWeb();
+                    succeeded = true;
+                    return htmlPage;
+                }
+                catch (EmptyResponseException)
+                {
+                    tries--;
+                    Thread.Sleep(100);
+                }
+            } while (!succeeded && tries > 0);
+            //not succeeded case:
+            throw new EmptyResponseException(UriString);
         }
 
         private List<GigEvent> ExtractAllGigEvents(HtmlDocument htmlSnippet)
@@ -38,41 +67,55 @@ namespace Parser._66
             foreach (HtmlNode pivotNode in pivotNodes)
             {
                 string date = ExtractTextAboutDate(pivotNode);
-
+                string address = ExtractTextAboutAddress(pivotNode);
                 string name = ExtractTextAboutName(pivotNode);
-
                 string placeText = ExtractTextAboutPlace(pivotNode);
 
-                events.Add(new GigEvent {Place = placeText, Date = date, Name = name});
+                events.Add(new GigEvent {Place = placeText, Date = date, Name = name, Address = address});
             }
             return events;
         }
 
-        private static string ExtractTextAboutDate(HtmlNode pivotNode)
+        private string ExtractTextAboutAddress(HtmlNode pivotNode)
         {
-            const string selector = @"ancestor::table[3]//b[@class='white_menu']";
-            const string selector2 = @"ancestor::table[1]/preceding-sibling::table//span[@class='white_menu'][last()]";
-            const string selector3 = @"(ancestor::table[1]/preceding-sibling::table//span[@class='white_menu'][last()])[last()]";
-            try
-            {
-                return ExtractText(selector3, pivotNode);
-            }
-            catch (SelectException e)
-            {
-                return null;
-            }
+            const string selector = @".";
+            string address;
+            bool success = ExtractText(selector, pivotNode, out address);
+            if (success)
+                return address;
+            return null;
         }
 
-        private static string ExtractText(string xPathSelector, HtmlNode pivotNode)
+        private static string ExtractTextAboutDate(HtmlNode pivotNode)
+        {
+            const string currentDaySelector = @"ancestor::table[3]//b[@class='white_menu']";
+            const string closestDaySelector = @"(ancestor::table[1]/preceding-sibling::table//span[@class='white_menu'][last()])[last()]";
+            string date;
+
+            bool success = ExtractText(closestDaySelector, pivotNode, out date);
+            if (success)
+                return date;
+
+            success = ExtractText(currentDaySelector, pivotNode, out date);
+            if (success)
+                return date;
+
+            return null;
+        }
+
+        private static bool ExtractText(string xPathSelector, HtmlNode pivotNode, out string content)
         {
             HtmlNode node = pivotNode.SelectSingleNode(xPathSelector);
             if (node == null)
-                throw new SelectException(xPathSelector);
-            string date = node.InnerText.Trim();
-            if (date == string.Empty)
+            {
+                content = "";
+                return false;
+            }
+            content = node.InnerText.Trim();
+            if (content == string.Empty)
                 Console.Error.WriteLine("Extracted text from pivot node \"{0}\" with selector xpath \"{1}\" is empty",
                     pivotNode.InnerText, xPathSelector);
-            return date;
+            return true;
         }
 
         private static string ExtractTextAboutName(HtmlNode pivotNode)
@@ -80,27 +123,39 @@ namespace Parser._66
             //take second table after table that is holding pivotnode (special thanks to e1's front-end developers):
             //ancestor::table[1]/following-sibling::table[2]
             const string selector = @"ancestor::table[1]/following-sibling::table[2]//b[@class='big_orange']";
-            return ExtractText(selector, pivotNode);
+            string name;
+            bool success = ExtractText(selector, pivotNode, out name);
+            if (success)
+                return name;
+            return null;
         }
 
         private static string ExtractTextAboutPlace(HtmlNode pivotNode)
         {
             const string selector = @"../b";
-            return ExtractText(selector, pivotNode);
+            string place;
+            bool success = ExtractText(selector, pivotNode, out place);
+            if (success)
+                return place;
+            return null;
         }
 
         private HtmlDocument LoadHtmlPageFromWeb()
         {
-            Stream stream = WebRequest.Create(UriString).GetResponse().GetResponseStream();
-            if (stream == null)
-                throw new EmptyResponseException(UriString);
+            using (var response = WebRequest.Create(UriString).GetResponse())
+            using (var stream = response.GetResponseStream())
+            {
+                var doc = new HtmlDocument();
+                doc.Load(stream);
+                return doc;
+            }
+        }
 
-            var doc = new HtmlDocument();
-            doc.Load(stream);
-
-            stream.Close();
-
-            return doc;
+        private void SelectedRowHandler(object sender, SelectionChangedEventArgs e)
+        {
+            var gigEvent = ((DataGrid) sender).SelectedItem as GigEvent;
+            if (gigEvent != null)
+                MessageBox.Show(string.Format("{0} {1}", gigEvent.Date, gigEvent.Name));
         }
     }
 }

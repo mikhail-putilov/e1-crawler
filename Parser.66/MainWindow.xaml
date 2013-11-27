@@ -1,9 +1,19 @@
 ﻿<Window x:Class="Parser._66.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="MainWindow" Height="600" Width="800"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:p66="clr-namespace:Parser._66"
+        mc:Ignorable="d"
+        Title="Парсер афиши e1.ru" Height="600" Width="800"
         Initialized="MainWindow_OnInitialized">
     <Grid>
-        <DataGrid x:Name="MainDataGrid"></DataGrid>
+        <DataGrid x:Name="MainDataGrid" SelectionMode="Single" SelectionUnit="FullRow" AutoGenerateColumns="False" d:DataContext="{d:DesignInstance p66:GigEvent}" SelectionChanged="SelectedRowHandler">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Дата проведения" Binding="{Binding Date}" IsReadOnly="True" />
+                <DataGridTextColumn Header="Место проведения" Binding="{Binding Place}" IsReadOnly="True" />
+                <DataGridTextColumn Header="Название события" Binding="{Binding Name}" IsReadOnly="True" />
+            </DataGrid.Columns>
+        </DataGrid>
     </Grid>
 </Window>
