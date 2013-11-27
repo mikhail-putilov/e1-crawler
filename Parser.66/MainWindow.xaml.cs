@@ -78,7 +78,7 @@ namespace Parser._66
 
         private string ExtractTextAboutAddress(HtmlNode pivotNode)
         {
-            const string selector = @".";
+            const string selector = @"child::text()";
             string address;
             bool success = ExtractText(selector, pivotNode, out address);
             if (success)
@@ -111,7 +111,7 @@ namespace Parser._66
                 content = "";
                 return false;
             }
-            content = node.InnerText.Trim();
+            content = node.InnerText.Trim(' ', '\n', '\t', ',', '.');
             if (content == string.Empty)
                 Console.Error.WriteLine("Extracted text from pivot node \"{0}\" with selector xpath \"{1}\" is empty",
                     pivotNode.InnerText, xPathSelector);
@@ -155,7 +155,7 @@ namespace Parser._66
         {
             var gigEvent = ((DataGrid) sender).SelectedItem as GigEvent;
             if (gigEvent != null)
-                MessageBox.Show(string.Format("{0} {1}", gigEvent.Date, gigEvent.Name));
+                StatusBlock.Text = gigEvent.Address;
         }
     }
 }
