@@ -157,5 +157,10 @@ namespace Parser._66
             if (gigEvent != null)
                 StatusBlock.Text = gigEvent.Address;
         }
+
+        private void GotoWebsiteButton_ClickHandler(object sender, RoutedEventArgs e)
+        {
+            System.Diagnostics.Process.Start(UriString);
+        }
     }
 }
