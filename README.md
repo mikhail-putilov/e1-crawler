@@ -1,5 +1,5 @@
 e1-crawler
 ==========
 
-Парсит афишу e1.ru с кривой версткой с помощью xpath, HtmlAgilityPack.
-пропущенный todo: отделить модель от представления.
+Парсит афишу http://www.e1.ru/afisha/events/gastroli с кривой версткой с помощью XPath, HtmlAgilityPack.<br>
+`Пропущенный todo: отделить модель от представления.`
